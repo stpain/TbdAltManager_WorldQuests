@@ -1,0 +1,13 @@
+## Name: TbdAltManager World Quests
+## Version: 0.1
+## Interface: 110107
+## Notes: World Quests module for TbdAltManager
+## SavedVariables: TbdAltManager_WorldQuests, TbdAltManager_WorldQuestData, TbdAltManager_WorldQuestTracking
+## Dependencies: TbdAltManager, TbdWidgets
+## Group: TbdAltManager
+
+## X-Curse-Project-ID: 1307404
+
+
+TbdAltManagerWorldQuests.lua
+TbdAltManagerWorldQuests.xml

@@ -1,0 +1,79 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
+
+    <Frame name="TbdAltManagerWorldQuestsListItemTemplate" mixin="TbdAltManagerWorldQuestsListItemMixin" hyperlinksEnabled="true" enableMouse="true" virtual="true">
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture parentKey="Background" atlas="UI-QuestTracker-Secondary-Objective-Header" hidden="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="-30" y="2"/>
+                        <Anchor point="BOTTOMRIGHT" x="0" y="-2"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="OVERLAY">
+                <FontString parentKey="Label" inherits="GameFontNormal">
+                    <Anchors>
+                        <Anchor point="LEFT" x="0" y="0"/>
+                    </Anchors>
+                </FontString>
+                <FontString parentKey="FinishTime" inherits="GameFontNormal">
+                    <Anchors>
+                        <Anchor point="RIGHT" x="-30" y="0"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button parentKey="ToggleButton" hidden="true">
+                <NormalTexture atlas="128-RedButton-Minus"/>
+                <PushedTexture atlas="128-RedButton-Minus-Pressed"/>
+                <HighlightTexture atlas="128-RedButton-Minus-Highlight"/>
+                <Anchors>
+                    <Anchor point="RIGHT" x="0" y="0"/>
+                </Anchors>
+                <Size x="22" y="22"/>
+            </Button>
+            <Button parentKey="SecondaryToggleButton" hidden="true">
+                <NormalTexture atlas="UI-QuestTrackerButton-Secondary-Collapse"/>
+                <PushedTexture atlas="UI-QuestTrackerButton-Secondary-Collapse-Pressed"/>
+                <HighlightTexture atlas="UI-QuestTrackerButton-Yellow-Highlight"/>
+                <Anchors>
+                    <Anchor point="RIGHT" x="0" y="0"/>
+                </Anchors>
+                <Size x="22" y="22"/>
+            </Button>
+        </Frames>
+<!-- UI-QuestTrackerButton-Collapse-All -->
+        <Scripts>
+            <OnLoad method="OnLoad"/>
+            <OnEnter method="OnEnter"/>
+            <OnLeave method="OnLeave"/>
+        </Scripts>
+    </Frame>
+
+
+
+
+    <Frame name="TbdAltManagerWorldQuests" mixin="TbdAltManagerWorldQuestsMixin">
+
+        <Frames>
+            <Frame parentKey="QuestList" inherits="TBDTreeviewTemplate">
+                <Anchors>
+                    <Anchor point="TOPLEFT" x="10" y="-10"/>
+                    <Anchor point="BOTTOMRIGHT" x="-10" y="10"/>
+                </Anchors>
+                <KeyValues>
+                    <KeyValue key="itemTemplate" value="TbdAltManagerWorldQuestsListItemTemplate" type="string"/>
+                    <KeyValue key="elementHeight" value="26" type="number"/>
+                </KeyValues>
+            </Frame>
+        </Frames>
+
+        <Scripts>
+            <OnLoad method="OnLoad"/>
+            <OnShow method="OnShow"/>
+        </Scripts>
+    </Frame>
+
+</Ui>
