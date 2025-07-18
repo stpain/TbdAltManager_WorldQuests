@@ -46,7 +46,7 @@ function TbdAltManagerWorldQuests.Api.InitializeCharacter(characterUID)
     end
 end
 
-function TbdAltManagerWorldQuests.Api.InitializeQuest(mapID, questID, title, finishTime, link)
+function TbdAltManagerWorldQuests.Api.InitializeQuest(mapID, questID, title, finishTime, link, level)
     if TbdAltManager_WorldQuestTracking then
         if not TbdAltManager_WorldQuestTracking[mapID] then
             TbdAltManager_WorldQuestTracking[mapID] = {}
@@ -62,6 +62,7 @@ function TbdAltManagerWorldQuests.Api.InitializeQuest(mapID, questID, title, fin
             TbdAltManager_WorldQuestTracking[mapID][questID].title = title
             TbdAltManager_WorldQuestTracking[mapID][questID].finishTime = finishTime
             TbdAltManager_WorldQuestTracking[mapID][questID].link = link
+            TbdAltManager_WorldQuestTracking[mapID][questID].level = level
         end
     end
 end
@@ -87,6 +88,42 @@ function TbdAltManagerWorldQuests.Api.SetCharacterQuestInfo(characterUID, questI
                         end
                     end
                 end
+            end
+        end
+    end
+end
+
+--600+
+
+function TbdAltManagerWorldQuests.Api.ScrapMaps()
+    for i = 600, 2500 do
+        TbdAltManagerWorldQuests.Api.GetWorldQuestsForMapID(i)
+    end
+end
+
+
+function TbdAltManagerWorldQuests.Api.GetWorldQuestsForMapID(mapID)
+    local mapInfo = C_Map.GetMapInfo(mapID)
+    if mapInfo.mapType == Enum.UIMapType.Zone then
+        local maskPOIs = C_TaskQuest.GetQuestsOnMap(mapID)
+        if (type(maskPOIs) == "table") and (next(maskPOIs) ~= nil) then
+            for _, info in ipairs(maskPOIs) do
+                if info.questID and C_QuestLog.IsWorldQuest(info.questID) then
+                    local active = C_TaskQuest.IsActive(info.questID)
+                    local questTitle, factionID, capped, displayAsObjective = C_TaskQuest.GetQuestInfoByQuestID(info.questID)
+                    local secondsLeft = C_TaskQuest.GetQuestTimeLeftSeconds(info.questID)
+                    print(string.format("%s %s %s %s", mapInfo.name, questTitle, tostring(active), date("%m-%d %H:%M", GetServerTime() + (secondsLeft or 0))))
+                end
+            end
+        end
+    end
+end
+
+function TbdAltManagerWorldQuests.Api.InitializeQuests()
+    if TbdAltManager_WorldQuestTracking then
+        for _, questIDs in pairs(TbdAltManager_WorldQuestTracking) do
+            for questID, info in pairs(questIDs) do
+
             end
         end
     end
@@ -212,6 +249,8 @@ function WorldQuestsEventFrame:PLAYER_ENTERING_WORLD(...)
     TbdAltManagerWorldQuests.Api.InitializeCharacter(self.characterUID)
 
     --C_TaskQuest.GetQuestsOnMap
+
+    --TbdAltManagerWorldQuests.Api.ScrapMaps()
 end
 
 
@@ -237,7 +276,7 @@ function WorldQuestsEventFrame:QUEST_ACCEPTED(...)
 
                         --questTitle, factionID, capped, displayAsObjective = C_TaskQuest.GetQuestInfoByQuestID(questID)
 
-                        TbdAltManagerWorldQuests.Api.InitializeQuest(mapID, questID, info.title, finishTime, link)
+                        TbdAltManagerWorldQuests.Api.InitializeQuest(mapID, questID, info.title, finishTime, link, info.difficultyLevel)
 
                         --C_QuestLog.GetQuestObjectives(questID)
 
@@ -317,6 +356,23 @@ function TbdAltManagerWorldQuestsListItemMixin:OnLoad()
     end)
 end
 
+function TbdAltManagerWorldQuestsListItemMixin:UpdateToggleState()
+    if self.node:IsCollapsed() then
+        self.ToggleButton:SetNormalAtlas("128-RedButton-Plus")
+        self.ToggleButton:SetPushedAtlas("128-RedButton-Plus-Pressed")
+    else
+        self.ToggleButton:SetNormalAtlas("128-RedButton-Minus")
+        self.ToggleButton:SetPushedAtlas("128-RedButton-Minus-Pressed")
+    end
+    if self.node:IsCollapsed() then
+        self.SecondaryToggleButton:SetNormalAtlas("UI-QuestTrackerButton-Secondary-Expand")
+        self.SecondaryToggleButton:SetPushedAtlas("UI-QuestTrackerButton-Secondary-Expand-Pressed")
+    else
+        self.SecondaryToggleButton:SetNormalAtlas("UI-QuestTrackerButton-Secondary-Collapse")
+        self.SecondaryToggleButton:SetPushedAtlas("UI-QuestTrackerButton-Secondary-Collapse-Pressed")
+    end
+end
+
 function TbdAltManagerWorldQuestsListItemMixin:OnEnter()
     if self.link then
         GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
@@ -339,6 +395,8 @@ function TbdAltManagerWorldQuestsListItemMixin:SetDataBinding(binding, _, node)
 
     self.node = node
 
+    self:UpdateToggleState()
+
     if binding.label then
         self.Label:SetText(binding.label)
     end
@@ -355,6 +413,15 @@ function TbdAltManagerWorldQuestsListItemMixin:SetDataBinding(binding, _, node)
         self.link = binding.link
         self.Background:Show()
         self.SecondaryToggleButton:Show()
+
+        if GetServerTime() > binding.finishTime then
+            self.Label:SetText(string.format("%s %s", CreateAtlasMarkup("Bags-padlock-authenticator", 32, 38), binding.label))
+            self.Label:SetFontObject(GameFontNormalLeftRed)
+            self.FinishTime:SetFontObject(GameFontNormalLeftRed)
+        else
+            self.Label:SetFontObject(GameFontNormal)
+            self.FinishTime:SetFontObject(GameFontNormal)
+        end
     end
 
 
@@ -384,6 +451,16 @@ function TbdAltManagerWorldQuestsListItemMixin:SetDataBinding(binding, _, node)
             self.Label:SetFontObject(GameFontWhite)
         else
             self.Label:SetFontObject(GameFontDisable)
+        end
+
+        --if its complete show a tick
+        if binding.data.isCompleted then
+            self.Label:SetText(string.format("%s %s", CreateAtlasMarkup("common-icon-checkmark", 16, 16), binding.label))
+        else
+            --if its not flagged as complete and its still active and before its finish time show a ?
+            if GetServerTime() < binding.finishTime then
+                self.Label:SetText(string.format("%s %s", CreateAtlasMarkup("UI-LFG-PendingMark-Raid", 16, 16), binding.label))
+            end
         end
 
     end
@@ -444,6 +521,39 @@ function TbdAltManagerWorldQuestsMixin:OnShow()
     self:LoadQuests()
 end
 
+--return true if a should be before b
+local function SortFunc_Quests(a, b)
+    if a:GetData() and b:GetData() then
+        local now = GetServerTime()
+
+        if (now > a:GetData().finishTime) then
+            if (now < b:GetData().finishTime) then
+                return false
+            end
+        end
+
+        if (now > b:GetData().finishTime) then
+            if (now < a:GetData().finishTime) then
+                return true
+            end
+        end
+
+        return (a:GetData().finishTime < b:GetData().finishTime)
+
+        -- if (a:GetData().finishTime == b:GetData().finishTime) then
+        --     if (now > a:GetData().finishTime) then
+        --         if (now < b:GetData().finishTime) then
+        --             return false
+        --         else
+        --             return true
+        --         end
+        --     end
+        -- else
+        --     return (a:GetData().finishTime < b:GetData().finishTime)
+        -- end
+    end
+end
+
 function TbdAltManagerWorldQuestsMixin:LoadQuests()
 
     local nodes = {}
@@ -464,6 +574,7 @@ function TbdAltManagerWorldQuestsMixin:LoadQuests()
                 label = mapName,
                 mapID = mapID,
             })
+            nodes[mapName]:SetSortComparator(SortFunc_Quests)
         end
 
         for questID, info in pairs(quests) do
@@ -486,7 +597,13 @@ function TbdAltManagerWorldQuestsMixin:LoadQuests()
                     finishTime = info.finishTime,
                 })
             end
+
+            if GetServerTime() > info.finishTime then
+                questNode:ToggleCollapsed()
+            end
         end
+
+        nodes[mapName]:Sort()
     end
 
     self.QuestList.scrollView:SetDataProvider(DataProvider)
