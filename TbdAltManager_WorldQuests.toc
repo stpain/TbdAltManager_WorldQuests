@@ -1,8 +1,8 @@
 ## Name: TbdAltManager World Quests
-## Version: 0.2
+## Version: 0.3
 ## Interface: 110107
 ## Notes: World Quests module for TbdAltManager
-## SavedVariables: TbdAltManager_WorldQuests, TbdAltManager_WorldQuestData, TbdAltManager_WorldQuestTracking
+## SavedVariables: TbdAltManager_WorldQuests, TbdAltManager_WorldQuestData, TbdAltManager_WorldQuestTracking, TbdAltManager_WorldQuestCharacters, TbdAltManager_WorldQuestConfig
 ## Dependencies: TbdAltManager, TbdWidgets
 ## Group: TbdAltManager
 

@@ -17,6 +17,8 @@
     "Lua.diagnostics.globals": [
         "CreateTreeDataProvider",
         "GameTooltip_SetDefaultAnchor",
-        "DataProviderMixin"
+        "DataProviderMixin",
+        "RAID",
+        "RAID_CLASS_COLORS"
     ]
 }

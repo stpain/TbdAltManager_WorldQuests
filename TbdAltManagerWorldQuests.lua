@@ -7,10 +7,76 @@ local playerUnitToken = "player"
 
 
 
+
+
+
+local characterDefaults = {
+    uid = "",
+    level = 1,
+}
+
+
+--Main DataProvider for the module
+local CharacterDataProvider = CreateFromMixins(DataProviderMixin)
+
+function CharacterDataProvider:InsertCharacter(characterUID)
+
+    local character = self:FindElementDataByPredicate(function(characterData)
+        return (characterData.uid == characterUID)
+    end)
+
+    if not character then        
+        local newCharacter = {}
+        for k, v in pairs(characterDefaults) do
+            newCharacter[k] = v
+        end
+
+        newCharacter.uid = characterUID
+
+        self:Insert(newCharacter)
+        TbdAltManagerTradeskills.CallbackRegistry:TriggerEvent("Character_OnAdded")
+    end
+end
+
+function CharacterDataProvider:FindCharacterByUID(characterUID)
+    return self:FindElementDataByPredicate(function(character)
+        return (character.uid == characterUID)
+    end)
+end
+
+function CharacterDataProvider:UpdateDefaultKeys()
+    for _, character in self:EnumerateEntireRange() do
+        for k, v in pairs(characterDefaults) do
+            if character[k] == nil then
+                character[k] = v;
+            end
+        end
+    end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 local function CreateCharacterEntry()
     return {
         lastCompleted = 0,
         itemRewards = {},
+        currencyRewards = {},
         isActive = false,
         isCompleted = false,
     }
@@ -213,6 +279,7 @@ local EventsToRegister = {
     "QUEST_ACCEPTED",
     "QUEST_TURNED_IN",
     "QUEST_LOOT_RECEIVED",
+    "QUEST_CURRENCY_LOOT_RECEIVED",
 }
 
 local WorldQuestsEventFrame = CreateFrame("Frame")
@@ -232,6 +299,17 @@ function WorldQuestsEventFrame:ADDON_LOADED(...)
         if TbdAltManager_WorldQuestTracking == nil then
             TbdAltManager_WorldQuestTracking = {}
         end
+
+        if TbdAltManager_WorldQuestCharacters == nil then
+            TbdAltManager_WorldQuestCharacters = {}
+        end
+
+        if TbdAltManager_WorldQuestConfig == nil then
+            TbdAltManager_WorldQuestConfig = {
+                CharacterMinLevel = 40,
+            }
+        end
+
     end
 end
 
@@ -241,6 +319,12 @@ function WorldQuestsEventFrame:PLAYER_ENTERING_WORLD(...)
     local name = UnitName(playerUnitToken)
 
     self.characterUID = string.format("%s.%s.%s", account, realm, name)
+
+    if TbdAltManager_WorldQuestCharacters[self.characterUID] == nil then
+        TbdAltManager_WorldQuestCharacters[self.characterUID] = {}
+    end
+    TbdAltManager_WorldQuestCharacters[self.characterUID].level = UnitLevel(playerUnitToken)
+    TbdAltManager_WorldQuestCharacters[self.characterUID].class = select(2, UnitClass(playerUnitToken))
 
     if ViragDevTool_AddData then
         ViragDevTool_AddData(TbdAltManager_WorldQuestTracking, "WorldQuests")
@@ -269,21 +353,22 @@ function WorldQuestsEventFrame:QUEST_ACCEPTED(...)
                     if info then
 
                         local timeRemaining = C_TaskQuest.GetQuestTimeLeftSeconds(questID)
-                        local now = GetServerTime()
-                        local finishTime = now + timeRemaining
+                        if type(timeRemaining) == "number" then
+                            local now = GetServerTime()
+                            local finishTime = now + timeRemaining
 
-                        local link = GetQuestLink(questID)
+                            local link = GetQuestLink(questID)
 
-                        --questTitle, factionID, capped, displayAsObjective = C_TaskQuest.GetQuestInfoByQuestID(questID)
+                            --questTitle, factionID, capped, displayAsObjective = C_TaskQuest.GetQuestInfoByQuestID(questID)
 
-                        TbdAltManagerWorldQuests.Api.InitializeQuest(mapID, questID, info.title, finishTime, link, info.difficultyLevel)
+                            TbdAltManagerWorldQuests.Api.InitializeQuest(mapID, questID, info.title, finishTime, link, info.difficultyLevel)
 
-                        --C_QuestLog.GetQuestObjectives(questID)
+                            --C_QuestLog.GetQuestObjectives(questID)
 
-                        TbdAltManagerWorldQuests.Api.SetCharacterQuestInfo(self.characterUID, questID, true, false, nil)
+                            TbdAltManagerWorldQuests.Api.SetCharacterQuestInfo(self.characterUID, questID, true, false, nil)
 
-                        TbdAltManagerWorldQuests.Api.AddCharactersToQuest(questID)
-
+                            TbdAltManagerWorldQuests.Api.AddCharactersToQuest(questID)
+                        end
                     end
                 end
             end)
@@ -316,6 +401,24 @@ function WorldQuestsEventFrame:QUEST_LOOT_RECEIVED(...)
             end
             table.insert(TbdAltManager_WorldQuestTracking[mapID][questID].characters[self.characterUID].itemRewards, 1, {
                 link = link,
+                quantity = quantity,
+                receivedTime = GetServerTime(),
+            })
+        end
+    end
+end
+
+function WorldQuestsEventFrame:QUEST_CURRENCY_LOOT_RECEIVED(...)
+    local questID, currencyId, quantity = ...;
+    local mapID = C_Map.GetBestMapForUnit("player")
+    if mapID then
+        --print("got mapID")
+        if TbdAltManager_WorldQuestTracking[mapID] and TbdAltManager_WorldQuestTracking[mapID][questID] and TbdAltManager_WorldQuestTracking[mapID][questID].characters[self.characterUID] then
+            if not TbdAltManager_WorldQuestTracking[mapID][questID].characters[self.characterUID].currencyRewards then
+                TbdAltManager_WorldQuestTracking[mapID][questID].characters[self.characterUID].currencyRewards = {}
+            end
+            table.insert(TbdAltManager_WorldQuestTracking[mapID][questID].characters[self.characterUID].currencyRewards, 1, {
+                currencyId = currencyId,
                 quantity = quantity,
                 receivedTime = GetServerTime(),
             })
@@ -404,6 +507,7 @@ function TbdAltManagerWorldQuestsListItemMixin:SetDataBinding(binding, _, node)
     if binding.mapID then
         self.Label:SetFontObject(GameFontNormalLarge)
         self.ToggleButton:Show()
+        --self.BottomBorder:Show()
     else
         self.Label:SetFontObject(GameFontNormal)
     end
@@ -431,37 +535,62 @@ function TbdAltManagerWorldQuestsListItemMixin:SetDataBinding(binding, _, node)
         --     self.FinishTime:SetText(date("%A - %d/%m %H:%M", binding.data.lastCompleted))
         -- end
 
+        self.Label:SetFontObject(GameFontWhite)
+
+        local characterName = binding.label
+        if TbdAltManager_WorldQuestCharacters[binding.label] then
+            local rgb = RAID_CLASS_COLORS[TbdAltManager_WorldQuestCharacters[binding.label].class]
+            if rgb then
+                characterName = rgb:WrapTextInColorCode(characterName)
+            end
+        end
+
 
         if binding.data.itemRewards[1] then
             self.FinishTime:SetText(string.format("|cffffffff[x%d] %s", binding.data.itemRewards[1].quantity or "", binding.data.itemRewards[1].link or ""))
             self.link = binding.data.itemRewards[1].link
         end
 
+        if binding.data.currencyRewards and binding.data.currencyRewards[1] then
+
+            local currencyIsNewer = false;
+            if binding.data.itemRewards[1] == nil then
+                currencyIsNewer = true
+            else
+                if binding.data.itemRewards[1] and (binding.data.itemRewards[1].receivedTime < binding.data.currencyRewards[1].receivedTime) then
+                    currencyIsNewer = true
+                end
+            end
+
+            if currencyIsNewer == true then
+                local currency = C_CurrencyInfo.GetCurrencyInfo(binding.data.currencyRewards[1].currencyId)
+                self.FinishTime:SetText(string.format("|cffffffff[x%d] %s", binding.data.currencyRewards[1].quantity or "", currency.name or ""))
+            end
+        end
+
+
         if #binding.data.itemRewards > 1 then
             self.itemRewardsTooltipData = binding.data.itemRewards;
         end
-
-        if binding.data.isCompleted then
-            self.Label:SetText(string.format("%s %s", CreateAtlasMarkup("common-icon-checkmark", 16, 16), binding.label))
-        else
-
-        end
-        
-        if binding.data.isActive then
-            self.Label:SetFontObject(GameFontWhite)
-        else
-            self.Label:SetFontObject(GameFontDisable)
-        end
+       
+        -- if binding.data.isActive then
+        --     self.Label:SetFontObject(GameFontWhite)
+        -- else
+        --     self.Label:SetFontObject(GameFontDisable)
+        -- end
 
         --if its complete show a tick
         if binding.data.isCompleted then
-            self.Label:SetText(string.format("%s %s", CreateAtlasMarkup("common-icon-checkmark", 16, 16), binding.label))
+            self.Label:SetText(string.format("%s %s", CreateAtlasMarkup("common-icon-checkmark", 20, 20), characterName))
+            self.Label:SetFontObject(GameFontDisable)
         else
             --if its not flagged as complete and its still active and before its finish time show a ?
             if GetServerTime() < binding.finishTime then
-                self.Label:SetText(string.format("%s %s", CreateAtlasMarkup("UI-LFG-PendingMark-Raid", 16, 16), binding.label))
+                self.Label:SetText(string.format("%s %s", CreateAtlasMarkup("UI-LFG-PendingMark-Raid", 20, 20), characterName))
             end
         end
+
+        --self.Label:SetText(characterName)
 
     end
 
@@ -474,6 +603,7 @@ function TbdAltManagerWorldQuestsListItemMixin:ResetDataBinding()
     self.FinishTime:SetText("")
     self.link = nil
     self.Background:Hide()
+    self.BottomBorder:Hide()
     self.ToggleButton:Hide()
     self.SecondaryToggleButton:Hide()
     self.node = nil
@@ -515,9 +645,25 @@ TbdAltManagerWorldQuestsMixin = {
 }
 function TbdAltManagerWorldQuestsMixin:OnLoad()
     TbdAltsManager.Api.RegisterModule(self)
+
+    self.MinLevelSlider:SetMinMaxValues(1, 80)
+    self.MinLevelSlider.label:SetFontObject(GameFontNormal)
+    self.MinLevelSlider.label:SetText("Min character level")
+
+    self.MinLevelSlider:SetScript("OnMouseWheel", function(_, delta)
+        self.MinLevelSlider:SetValue(self.MinLevelSlider:GetValue() + delta)
+    end)
+    self.MinLevelSlider:SetScript("OnValueChanged", function(slider)
+        local val = math.floor(self.MinLevelSlider:GetValue())
+        TbdAltManager_WorldQuestConfig.CharacterMinLevel = val
+        slider.value:SetText(val)
+        self:LoadQuests()
+    end)
 end
 
 function TbdAltManagerWorldQuestsMixin:OnShow()
+    self.MinLevelSlider:SetMinMaxValues(1, GetMaxLevelForLatestExpansion())
+    self.MinLevelSlider:SetValue(TbdAltManager_WorldQuestConfig.CharacterMinLevel)
     self:LoadQuests()
 end
 
@@ -554,6 +700,10 @@ local function SortFunc_Quests(a, b)
     end
 end
 
+local function SortFunc_Characters(a, b)
+    return a:GetData().label < b:GetData().label
+end
+
 function TbdAltManagerWorldQuestsMixin:LoadQuests()
 
     local nodes = {}
@@ -587,16 +737,29 @@ function TbdAltManagerWorldQuestsMixin:LoadQuests()
                 link = info.link,
             })
 
+            questNode:SetSortComparator(SortFunc_Characters)
+
             for uid, data in pairs(info.characters) do
 
                 --print(uid)
-                
-                questNode:Insert({
-                    label = uid,
-                    data = data,
-                    finishTime = info.finishTime,
-                })
+                if TbdAltManager_WorldQuestCharacters and TbdAltManager_WorldQuestCharacters[uid] then
+                    if TbdAltManager_WorldQuestCharacters[uid].level >= TbdAltManager_WorldQuestConfig.CharacterMinLevel then
+                        questNode:Insert({
+                            label = uid,
+                            data = data,
+                            finishTime = info.finishTime,
+                        })
+                    end
+                else
+                    questNode:Insert({
+                        label = uid,
+                        data = data,
+                        finishTime = info.finishTime,
+                    })
+                end
             end
+
+            questNode:Sort()
 
             if GetServerTime() > info.finishTime then
                 questNode:ToggleCollapsed()

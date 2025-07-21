@@ -4,10 +4,20 @@ https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
     <Frame name="TbdAltManagerWorldQuestsListItemTemplate" mixin="TbdAltManagerWorldQuestsListItemMixin" hyperlinksEnabled="true" enableMouse="true" virtual="true">
         <Layers>
             <Layer level="BACKGROUND">
+                <!-- header-horizontal-rule -->
+                 <!-- evergreen-weeklyrewards-divider -->
+                  <!-- Options_HorizontalDivider -->
                 <Texture parentKey="Background" atlas="UI-QuestTracker-Secondary-Objective-Header" hidden="true">
                     <Anchors>
                         <Anchor point="TOPLEFT" x="-30" y="2"/>
                         <Anchor point="BOTTOMRIGHT" x="0" y="-2"/>
+                    </Anchors>
+                </Texture>
+                <Texture parentKey="BottomBorder" atlas="header-horizontal-rule" hidden="true">
+                    <Size y="3"/>
+                    <Anchors>
+                        <Anchor point="BOTTOMLEFT" x="0" y="0"/>
+                        <Anchor point="BOTTOMRIGHT" x="0" y="0"/>
                     </Anchors>
                 </Texture>
             </Layer>
@@ -58,9 +68,17 @@ https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
     <Frame name="TbdAltManagerWorldQuests" mixin="TbdAltManagerWorldQuestsMixin">
 
         <Frames>
+
+            <Slider parentKey="MinLevelSlider" inherits="TBDSliderLeftLabel">
+                <Size x="120" y="16"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" x="150" y="-10"/>
+                </Anchors>
+            </Slider>
+
             <Frame parentKey="QuestList" inherits="TBDTreeviewTemplate">
                 <Anchors>
-                    <Anchor point="TOPLEFT" x="10" y="-10"/>
+                    <Anchor point="TOPLEFT" x="10" y="-40"/>
                     <Anchor point="BOTTOMRIGHT" x="-10" y="10"/>
                 </Anchors>
                 <KeyValues>
